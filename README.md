@@ -65,3 +65,5 @@ void loop() {
   stopMotors();
   delay(2000);
 }
+
+// All the three should have black for it to work 
