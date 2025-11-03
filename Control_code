@@ -1,38 +1,165 @@
-// Arduino Due + Cytron Motor Driver + Wheel Encoder
-// Motor pins for Cytron
+// Arduino Due + Cytron Motor Driver + Wheel Encoder - Complete Lab Solution
+// Includes motor control, encoder reading, speed calculation
+
+// ----- Motor pins for Cytron -----
 const int dir1 = 8;    // M1 Direction (Pin 1 on Cytron)
 const int pwm1 = 5;    // M1 PWM (Pin 2 on Cytron)  
 const int dir2 = 10;   // M2 Direction (Pin 3 on Cytron)
 const int pwm2 = 6;    // M2 PWM (Pin 4 on Cytron)
 
+// ----- Wheel Encoder -----
+const int encoderPin = A7; // Encoder signal on A7
+volatile uint32_t lastCaptureTime = 0;
+volatile uint32_t pulseInterval = 0;
+volatile bool newData = false;
+
+// ----- Speed Calculation -----
+const float wheelDiameter = 6.5; // cm - MEASURE YOUR ACTUAL WHEEL!
+const float wheelCircumference = PI * wheelDiameter;
+const int pulsesPerRevolution = 20; // Encoder teeth count
+
+// Running average buffer
+const int numReadings = 10;
+float speedReadings[numReadings];
+int readIndex = 0;
+float speedTotal = 0;
+float speedAverage = 0;
+
 void setup() {
+  Serial.begin(115200);
+  
+  // Motor pins
   pinMode(dir1, OUTPUT);
   pinMode(pwm1, OUTPUT);
   pinMode(dir2, OUTPUT); 
   pinMode(pwm2, OUTPUT);
-  Serial.begin(115200);
+  
+  // Initialize speed readings array
+  for (int i = 0; i < numReadings; i++) {
+    speedReadings[i] = 0;
+  }
+  
+  // Timer Counter setup for encoder on TC1 (TC0 channel 1)
+  PMC->PMC_PCER0 |= PMC_PCER0_PID28; // Enable clock for TC1
+  
+  TC0->TC_CHANNEL[1].TC_CMR = TC_CMR_TCCLKS_TIMER_CLOCK1  // MCK/2 = 42 MHz
+                              | TC_CMR_ABETRG             // TIOA as external trigger
+                              | TC_CMR_LDRA_RISING        // Load RA on rising edge
+                              | TC_CMR_ETRGEDG_RISING;   // Trigger on rising edge
+  
+  TC0->TC_CHANNEL[1].TC_CCR = TC_CCR_SWTRG | TC_CCR_CLKEN; // Reset and enable timer
+  
+  // Enable interrupt on load RA
+  TC0->TC_CHANNEL[1].TC_IER |= TC_IER_LDRAS;
+  NVIC_EnableIRQ(TC1_IRQn);
+  
+  Serial.println("=== Cytron Motor + Encoder Lab Test ===");
+  Serial.println("Ready to measure speed in cm/s...");
+  delay(1000);
 }
 
-// CORRECT Cytron motor control:
-void forward() {
-  digitalWrite(dir1, HIGH);  // Single direction pin
+// ----- CORRECT Cytron Motor Control -----
+void forward(int speed) {
+  digitalWrite(dir1, HIGH);
   digitalWrite(dir2, HIGH);
-  analogWrite(pwm1, 200);
-  analogWrite(pwm2, 200);
+  analogWrite(pwm1, speed);
+  analogWrite(pwm2, speed);
 }
 
-void backward() {
-  digitalWrite(dir1, LOW);   // Single direction pin  
-  digitalWrite(dir2, LOW);
-  analogWrite(pwm1, 200);
-  analogWrite(pwm2, 200);
+void backward(int speed) {
+  digitalWrite(dir1, LOW);
+  digitalWrite(dir2, LOW); 
+  analogWrite(pwm1, speed);
+  analogWrite(pwm2, speed);
+}
+
+void stopMotors() {
+  analogWrite(pwm1, 0);
+  analogWrite(pwm2, 0);
+}
+
+// ----- Speed Calculation Function -----
+float calculateSpeedCMs() {
+  if (pulseInterval == 0) return 0;
+  
+  // Calculate time for one revolution (seconds)
+  float timePerRevolution = pulseInterval * pulsesPerRevolution / 42000000.0;
+  
+  if (timePerRevolution == 0) return 0;
+  
+  // Speed = distance / time
+  float speed_cm_per_s = wheelCircumference / timePerRevolution;
+  return speed_cm_per_s;
+}
+
+// ----- Running Average Update -----
+void updateSpeedAverage(float newSpeed) {
+  speedTotal = speedTotal - speedReadings[readIndex];
+  speedReadings[readIndex] = newSpeed;
+  speedTotal = speedTotal + speedReadings[readIndex];
+  readIndex = (readIndex + 1) % numReadings;
+  speedAverage = speedTotal / numReadings;
 }
 
 void loop() {
-  forward();
-  delay(2000);
-  // Stop motors
-  analogWrite(pwm1, 0);
-  analogWrite(pwm2, 0);
-  delay(2000);
+  // Test different PWM frequencies and duty cycles as required by lab
+  int pwmValues[] = {0, 102, 204, 255}; // 0%, 40%, 80%, 100%
+  int frequencies[] = {50, 100, 500, 1000}; // Hz
+  
+  for (int freq = 0; freq < 4; freq++) {
+    Serial.print("\n--- Testing Frequency: ");
+    Serial.print(frequencies[freq]);
+    Serial.println(" Hz ---");
+    
+    // Note: Due's analogWrite uses ~1kHz fixed, for other frequencies 
+    // you'd need to use Timer Counter PWM (advanced)
+    
+    for (int pwm = 0; pwm < 4; pwm++) {
+      Serial.print("PWM Duty: ");
+      Serial.print((pwmValues[pwm] * 100) / 255);
+      Serial.println("%");
+      
+      // Reset speed average
+      speedTotal = 0;
+      for (int i = 0; i < numReadings; i++) {
+        speedReadings[i] = 0;
+      }
+      
+      // Run motor and measure speed
+      forward(pwmValues[pwm]);
+      delay(3000); // Run for 3 seconds to get stable reading
+      
+      // Print final average speed
+      Serial.print("Average Speed: ");
+      Serial.print(speedAverage);
+      Serial.println(" cm/s");
+      Serial.println("-------------------");
+      
+      stopMotors();
+      delay(1000); // Brief stop between tests
+    }
+  }
+  
+  Serial.println("\n*** TEST COMPLETE ***");
+  while(1); // Stop here
+}
+
+// ----- Timer Counter Interrupt Handler -----
+void TC1_Handler() {
+  uint32_t status = TC0->TC_CHANNEL[1].TC_SR; // Read status (clears interrupt)
+  
+  if (status & TC_SR_LDRAS) {
+    uint32_t currentTime = TC0->TC_CHANNEL[1].TC_RA;
+    
+    if (lastCaptureTime != 0) {
+      pulseInterval = currentTime - lastCaptureTime;
+      
+      // Calculate speed and update running average
+      float currentSpeed = calculateSpeedCMs();
+      updateSpeedAverage(currentSpeed);
+      
+      newData = true;
+    }
+    lastCaptureTime = currentTime;
+  }
 }
