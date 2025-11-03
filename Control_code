@@ -1,83 +1,38 @@
-// Arduino Due + Cytron Motor Driver + Wheel Encoder Test
-
-// ----- Motor pins -----
-const int dirPin = 8;    // Direction pin (M1 DIR)
-const int pwmPin = 6;    // PWM pin (M1 SPEED) ~ pin 6 supports PWM on Due
-
-// ----- Wheel Encoder -----
-const int encoderPin = A7; // Encoder signal connected to A7
-volatile uint32_t CaptureCountA = 0;
-volatile bool CaptureFlag = false;
-
-// ----- Wheel & speed parameters -----
-const float wheelCircumference = 20.0; // cm, replace with your measured wheel
-const int pulsesPerRev = 20;           // encoder teeth
+// Arduino Due + Cytron Motor Driver + Wheel Encoder
+// Motor pins for Cytron
+const int dir1 = 8;    // M1 Direction (Pin 1 on Cytron)
+const int pwm1 = 5;    // M1 PWM (Pin 2 on Cytron)  
+const int dir2 = 10;   // M2 Direction (Pin 3 on Cytron)
+const int pwm2 = 6;    // M2 PWM (Pin 4 on Cytron)
 
 void setup() {
+  pinMode(dir1, OUTPUT);
+  pinMode(pwm1, OUTPUT);
+  pinMode(dir2, OUTPUT); 
+  pinMode(pwm2, OUTPUT);
   Serial.begin(115200);
-
-  // Motor pins
-  pinMode(dirPin, OUTPUT);
-  pinMode(pwmPin, OUTPUT);
-
-  // Timer Counter setup for encoder on TC1 (TC0 channel 1)
-  PMC->PMC_PCER0 |= PMC_PCER0_PID28; // Enable clock for TC1
-  TC0->TC_CHANNEL[1].TC_CMR = TC_CMR_TCCLKS_TIMER_CLOCK1  // MCK/2
-                              | TC_CMR_ABETRG             // external trigger
-                              | TC_CMR_LDRA_RISING        // load RA on rising edge
-                              | TC_CMR_ETRGEDG_RISING;   // trigger on rising edge
-  TC0->TC_CHANNEL[1].TC_CCR = TC_CCR_SWTRG | TC_CCR_CLKEN; // reset and enable
-
-  // Enable interrupt on load RA
-  TC0->TC_CHANNEL[1].TC_IER |= TC_IER_LDRAS;
-  NVIC_EnableIRQ(TC1_IRQn);
-
-  Serial.println("Cytron Motor + Encoder Test Starting...");
 }
 
-// ----- Motor control functions -----
-void forward(int speed) {
-  digitalWrite(dirPin, HIGH); // forward
-  analogWrite(pwmPin, speed);
+// CORRECT Cytron motor control:
+void forward() {
+  digitalWrite(dir1, HIGH);  // Single direction pin
+  digitalWrite(dir2, HIGH);
+  analogWrite(pwm1, 200);
+  analogWrite(pwm2, 200);
 }
 
-void backward(int speed) {
-  digitalWrite(dirPin, LOW);  // backward
-  analogWrite(pwmPin, speed);
-}
-
-void stopMotor() {
-  analogWrite(pwmPin, 0);
+void backward() {
+  digitalWrite(dir1, LOW);   // Single direction pin  
+  digitalWrite(dir2, LOW);
+  analogWrite(pwm1, 200);
+  analogWrite(pwm2, 200);
 }
 
 void loop() {
-  // Example: move forward 2 sec, backward 2 sec
-  forward(200);
+  forward();
   delay(2000);
-  stopMotor();
-  delay(1000);
-  backward(200);
+  // Stop motors
+  analogWrite(pwm1, 0);
+  analogWrite(pwm2, 0);
   delay(2000);
-  stopMotor();
-  delay(2000);
-
-  // Check encoder updates
-  if (CaptureFlag) {
-    CaptureFlag = false;
-    // Convert capture count to cm/s
-    float revolutions = CaptureCountA / float(pulsesPerRev);
-    float speed_cm_per_s = revolutions * wheelCircumference * (1000.0 / 2000.0); // based on 2s delay
-    Serial.print("Wheel speed: ");
-    Serial.print(speed_cm_per_s);
-    Serial.println(" cm/s");
-  }
-}
-
-// ----- Interrupt handler for TC1 -----
-void TC1_Handler() {
-  uint32_t status = TC0->TC_CHANNEL[1].TC_SR; // read and clear status
-  if (status & TC_SR_LDRAS) {
-    CaptureCountA = TC0->TC_CHANNEL[1].TC_RA; // store encoder count
-    CaptureFlag = true;
-  }
 }
