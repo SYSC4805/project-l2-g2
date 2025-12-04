@@ -1,69 +1,33 @@
-""" [![Open in Visual Studio Code](https://classroom.github.com/assets/open-in-vscode-2e0aaae1b6195c2367325f4f02e2d04e9abb55f0b24a779b69b11b9e10269abc.svg)](https://classroom.github.com/online_ide?assignment_repo_id=20784040&assignment_repo_type=AssignmentRepo)"""
+# SYSC 4805 - Group L2-G7: Automatic Snowplow Robot
 
-// Motor Integration Test Code
-// Controls left and right DC motors using L298N motor driver
+This repository contains the code for an autonomous snowplow robot designed for SYSC 4805. The system utilizes a Finite State Machine (FSM) to handle navigation, obstacle avoidance, line following, and self-calibration.
 
-// Motor A (Left)
-int enA = 5;
-int in1 = 8;
-int in2 = 9;
+## Overview
 
-// Motor B (Right)
-int enB = 6;
-int in3 = 10;
-int in4 = 11;
+The robot operates autonomously to clear an area by navigating in a lawmower pattern. It relies on sensor fusion (LSM6 Gyroscope + LIS3MDL Magnetometer) for precise turning and heading, while Ultrasonic and IR sensors provide obstacle detection.
 
-void setup() {
-  // Set motor control pins as output
-  pinMode(enA, OUTPUT);
-  pinMode(in1, OUTPUT);
-  pinMode(in2, OUTPUT);
+### Key Features
+* **Sensor Fusion:** Combines Gyroscope and Magnetometer data for drift-free heading (Yaw) calculation
+* **Finite State Machine:** Robust logic handling states like `ORIGIN_CALIBRATION`, `FORWARD`, `TURN_90`, and `END_REACHED`
+* **Crash Recovery:** Implements a Watchdog Timer (WDT) to reset the system safely in case of a freeze
+* **Line Following:** Uses multiple line sensor arrays to detect boundaries and navigate between trials(next corner)
 
-  pinMode(enB, OUTPUT);
-  pinMode(in3, OUTPUT);
-  pinMode(in4, OUTPUT);
+## Project Structure
 
-  Serial.begin(9600);
-  Serial.println("Motor Integration Test Starting...");
-}
+This project is organized into the following active directories:
 
-// Move Forward
-void forward() {
-  digitalWrite(in1, HIGH);
-  digitalWrite(in2, LOW);
-  digitalWrite(in3, HIGH);
-  digitalWrite(in4, LOW);
-  analogWrite(enA, 200);
-  analogWrite(enB, 200);
-}
-
-// Stop Motors
-void stopMotors() {
-  digitalWrite(in1, LOW);
-  digitalWrite(in2, LOW);
-  digitalWrite(in3, LOW);
-  digitalWrite(in4, LOW);
-}
-
-// Move Backward
-void backward() {
-  digitalWrite(in1, LOW);
-  digitalWrite(in2, HIGH);
-  digitalWrite(in3, LOW);
-  digitalWrite(in4, HIGH);
-  analogWrite(enA, 200);
-  analogWrite(enB, 200);
-}
-
-void loop() {
-  forward();
-  delay(2000);
-  stopMotors();
-  delay(1000);
-  backward();
-  delay(2000);
-  stopMotors();
-  delay(2000);
-}
-
-// All the three should have black for it to work 
+```text
+project-l2-g2/
+├── main.cpp                     # Main application logic (State Machine & Control Loop)
+├── sensors                      # OLD: not used !
+│   └── linedetection.ino 
+├── calibration/                 # Sensor calibration scripts
+│   └── magnetometer_calibration.ino
+└── unit-tests/                  # Isolated tests for hardware components
+    ├── IMUtest/                 # Gyroscope and Magnetometer tests
+    ├── IRObstacleAvoidanceSensor.ino # IR tests
+    ├── LineFollowingSensor.ino  # Line deetection tests 
+    ├── MotorControl/            # Basic motor direction/speed checks
+    ├── MotorIntegration.ino     # Motor Integration tests
+    ├── UltrasonicSensor.ino     # Ultrasonic tests
+    └── WDTtest/                 # Watchdog Timer logic simulation
