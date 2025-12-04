@@ -1,0 +1,70 @@
+// IMU Sensor Unit Test
+
+#include <Wire.h>
+#include <LSM6.h>
+#include <LIS3MDL.h>
+
+/* Sensors */
+LSM6 imu;
+LIS3MDL mag;
+
+bool imu_ready = false;
+bool mag_ready = false;
+
+void setup() {
+    Serial.begin(9600);
+    while (!Serial);
+    Serial.println("IMU & Magnetometer Sensor Test");
+
+    Wire.begin();
+
+    // Initialize LSM6 (Gyro)
+    if (imu.init()) {
+        imu.enableDefault();
+        imu_ready = true;
+        Serial.println("LSM6 IMU Initialized");
+    } else {
+        Serial.println("LSM6 IMU failed to init!");
+    }
+
+    // Initialize LIS3MDL (Magnetometer)
+    if (mag.init()) {
+        mag.enableDefault();
+        mag_ready = true;
+        Serial.println("LIS3MDL Magnetometer Initialized");
+    } else {
+        Serial.println("LIS3MDL Magnetometer failed to init! Check wiring");
+    }
+    
+    delay(1000);
+}
+
+void loop() {
+    if (!imu_ready && !mag_ready) {
+        Serial.println("No sensors detected. Stopping");
+        while(1);
+    }
+
+    // Read and Print Gyro
+    if (imu_ready) {
+        imu.read();
+        Serial.print("GYRO  | X: "); Serial.print(imu.g.x);
+        Serial.print("  Y: "); Serial.print(imu.g.y);
+        Serial.print("  Z: "); Serial.print(imu.g.z);
+        
+        // Print calculated Z dps
+        float Gz_dps = ((int16_t)imu.g.z) * 8.75f / 1000.0f;
+        Serial.print("  |  Z (dps): "); Serial.print(Gz_dps);
+    }
+
+    // Read and Print Magnetometer
+    if (mag_ready) {
+        mag.read();
+        Serial.print("    ||    MAG  | X: "); Serial.print(mag.m.x);
+        Serial.print("  Y: "); Serial.print(mag.m.y);
+        Serial.print("  Z: "); Serial.print(mag.m.z);
+    }
+
+    Serial.println();
+    delay(100); 
+}
