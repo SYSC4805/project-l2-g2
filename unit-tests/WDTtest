@@ -1,0 +1,69 @@
+// WDT Unit Test
+// Tests the software watchdog logic by simulating a system freeze
+
+unsigned long lastFeedTime = 0;
+const unsigned long WATCHDOG_TIMEOUT = 1000;  // milliseconds
+
+/* Mock functions to replace actual motor/calibration calls */
+void stopMotors() {
+    Serial.println("Motors STOPPED");
+}
+
+void calibrateOrigin() {
+    Serial.println("Origin Calibration STARTED");
+}
+
+/* WDT Logic from main code */
+void feedWatchdog() {
+    lastFeedTime = millis();
+}
+
+bool checkWatchdog() {
+    return (millis() - lastFeedTime) > WATCHDOG_TIMEOUT;
+}
+
+void handleWatchdogTrigger() {
+    Serial.println("Watchdog Triggered !");
+    stopMotors();
+    calibrateOrigin();
+    lastFeedTime = millis();  // reset the timer
+}
+
+void setup() {
+    Serial.begin(9600);
+    while (!Serial); // wait for serial
+    Serial.println("WDT Unit Test Started");
+    feedWatchdog();
+}
+
+void loop() {
+    // 1. Simulate Normal Operation (Feeding the watchdog correctly)
+    Serial.println("\nSimulating Normal Operation (feeding every 200ms)...");
+    for (int i = 0; i < 4; i++) {
+        feedWatchdog();
+        if (checkWatchdog()) {
+            handleWatchdogTrigger();
+        } else {
+            Serial.println("System Normal...");
+        }
+        delay(200);
+    }
+
+    // 2. Simulate a Crash (Not feeding for > 1000ms)
+    Serial.println("\nSimulating System Crash/Block (Delay for 1.5s)...");
+    // We intentionally DO NOT feed the watchdog here
+    delay(1500); 
+
+    // 3. Check Status (Should trigger)
+    Serial.println("Waking up from crash. Checking WDT...");
+    if (checkWatchdog()) {
+        handleWatchdogTrigger();
+    } else {
+        Serial.println("Watchdog did not trigger!");
+    }
+
+    // Pause before repeating test
+    Serial.println("\nTest Loop Complete (Restarting in 2s)");
+    feedWatchdog(); // Reset for next loop
+    delay(2000);
+}
