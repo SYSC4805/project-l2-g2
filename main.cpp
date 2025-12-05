@@ -1,4 +1,4 @@
-// SYSC 4805 - L2 G7
+// SYSC 4805 - L2 G2
 // microcontroller code for automatic snowplow
 
 #include <stdint.h>
@@ -334,7 +334,7 @@ void readUltrasonic() {
         obstacleFlag = true;
     }
 
-    // Debugging
+    // logging
     Serial.print("Ultrasonic - Sensor 1: ");
     Serial.print(distance1);
     Serial.print(" | Sensor 2: ");
@@ -411,7 +411,7 @@ void readIMU() {
     currentYaw = fmod(currentYaw, 360.0);
     if (currentYaw < 0.0) currentYaw += 360.0;
 
-    // Debugging
+    // Logging
     Serial.print("Yaw: "); Serial.println(currentYaw);
 }
 
@@ -536,7 +536,7 @@ void loop() {
     }
     readLineSensors();
 
-    // Deugging 
+    // Logging 
     Serial.print("Left Line Sensor: ");
     Serial.print(Vref1);
     Serial.print(" | Right Line Sensor: ");
