@@ -1,4 +1,4 @@
-# SYSC 4805 - Group L2-G7: Automatic Snowplow Robot
+# SYSC 4805 - Group L2-G2: Automatic Snowplow Robot
 
 This repository contains the code for an autonomous snowplow robot designed for SYSC 4805. The system utilizes a Finite State Machine (FSM) to handle navigation, obstacle avoidance, line following, and self-calibration.
 
@@ -59,3 +59,8 @@ To compile `main.cpp`, ensure the following libraries are installed in your Ardu
 ## Safety Mechanisms
 
 * **Watchdog Timer:** If the main loop hangs for more than 1000ms, the WDT triggers `handleWatchdogTrigger()`, stopping all motors and resetting back to the `ORIGIN_CALIBRATION` state
+
+## License and Copyright
+© [2025] [Sysc4802_L2G2]. All rights reserved.
+
+Licensed under the [MIT License](LICENSE).
